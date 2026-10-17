@@ -1,0 +1,20 @@
+[project]
+name = "labs"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "max", email = "max_kirk1@icloud.com" }
+]
+requires-python = ">=3.13"
+dependencies = [
+    "requests>=2.34.2",
+    "tinydb>=4.9.0",
+]
+
+[project.scripts]
+labs = "labs:main"
+
+[build-system]
+requires = ["uv_build>=0.12.16,<0.13.0"]
+build-backend = "uv_build"

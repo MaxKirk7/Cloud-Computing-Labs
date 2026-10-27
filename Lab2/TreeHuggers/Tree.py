@@ -1,5 +1,6 @@
 # We use TinyDB as persistence: https://tinydb.readthedocs.io/en/latest/
 
+import requests
 from tinydb import Query, TinyDB, where
 
 
@@ -35,22 +36,24 @@ class Tree:
         # raise an appropriate ValueError if invalid https://docs.python.org/3/library/exceptions.html#ValueError
         # we raise Exception instead of returning False to provide info on the nature of the error
         ### your code here
+        errors = []
         if not self.species:
-            raise ValueError("species of a tree cannot be a empty string")
+            errors.append("species of a tree cannot be a empty string")
         # Activity 2: Validate that 'coordinates' is a tuple of size 2 and that values are floats that conform to the valid ranges
         # of latitude [-90.0,90.0] and longitude [-180.0,180.0]
         # raise ValueError("Wrong coordinates") if invalid https://docs.python.org/3/library/exceptions.html#ValueError
         # Use the isinstance function for type checking https://www.w3schools.com/python/ref_func_isinstance.asp
 
         ### your code here
-        x, y = self.coordinates
         if not (
-            len(x) == len(y) == 1
-            and isinstance(x, float) == isinstance(y, float)
-            and -90 <= x <= 90
-            and -180 <= y <= 180
+            len(self.coordinates) == 2
+            and all(isinstance(value, float) for value in self.coordinates)
+            and -90 <= self.coordinates[0] <= 90
+            and -180 <= self.coordinates[1] <= 180
         ):
-            raise ValueError("Wrong Coordinates")
+            errors.append("Wrong Coordinates")
+        if errors:
+            raise ValueError("\n".join(errors))
         return True
 
     @classmethod
@@ -71,6 +74,12 @@ class Tree:
 
         # Validate tree is not already in the database
         # TinyDB does not implement integrity constraints!
+        try:
+            tree.is_valid()
+        except ValueError as e:
+            if "Wrong Coordinate" in str(e):
+                raise ValueError(e)
+            tree.species = "Unknown"
         TreeQueryObject = Query()
         if cls.tree_collection.contains(TreeQueryObject.id == tree.id):
             raise ValueError("Attempt to insert a tree with id that already exists")
@@ -110,7 +119,23 @@ class Tree:
         Do take notice of the usage policy https://operations.osmfoundation.org/policies/nominatim/ (1 request per second)
         """
         ## your code here
-
+        payload = {
+            "lat": self.coordinates[0],
+            "lon": self.coordinates[1],
+            "format": "jsonv2",
+        }
+        headers = {"User-Agent": "Student Project"}
+        r = requests.get(
+            "https://nominatim.openstreetmap.org/reverse",
+            params=payload,
+            headers=headers,
+        )
+        try:
+            self.address = r.json()["display_name"]
+        except KeyError:
+            raise ValueError(
+                f"Failed to get address for coordinates: lat: {self.coordinates[0]}, Lon: {self.coordinates[1]}"
+            )
         # Additional Activity 3
         # Refactor get_address to raise an exception if nominatim's Reverse can't return an address
         # You may try coordinates (0,0), in the middle of the ocean, to see what to expect
@@ -121,3 +146,10 @@ class Tree:
         # to take this Tree's address and update its coordinates
         """
         # your code here
+
+
+if __name__ == "__main__":
+    t = Tree("z", (0.0, 0.0), "u", "")
+    t.get_address()
+
+    Tree.add_tree(t)

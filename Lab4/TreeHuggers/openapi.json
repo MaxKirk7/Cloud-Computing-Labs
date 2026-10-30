@@ -1,0 +1,291 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "TreeHuggers API",
+    "version": "1.0.0",
+    "description": "API for managing trees and users in the TreeHuggers application. Provides CRUD operations for tree locations and user management."
+  },
+  "servers": [
+    {
+      "url": "http://localhost:7071",
+      "description": "Local development server"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Trees",
+      "description": "Tree management operations - add and search for trees"
+    },
+    {
+      "name": "Users",
+      "description": "User management operations - add and delete users"
+    }
+  ],
+  "components": {
+    "schemas": {
+      "ErrorResponse": {
+        "type": "object",
+        "description": "Standard error response format used across all endpoints",
+        "properties": {
+          "result": {
+            "type": "boolean",
+            "description": "Success or failure indicator"
+          },
+          "msg": {
+            "type": "string",
+            "description": "Human-readable message describing the result or error"
+          }
+        },
+        "required": ["result", "msg"],
+        "example": {
+          "result": false,
+          "msg": "Bad Coordinates"
+        }
+      },
+      "Tree": {
+        "type": "object",
+        "description": "A tree record with location coordinates",
+        "properties": {
+          "ident": {
+            "type": "integer",
+            "description": "Unique tree identifier"
+          },
+          "address": {
+            "type": "string",
+            "description": "Full address of the tree location"
+          },
+          "latitude": {
+            "type": "number",
+            "format": "double",
+            "description": "Geographic latitude coordinate"
+          },
+          "longitude": {
+            "type": "number",
+            "format": "double",
+            "description": "Geographic longitude coordinate"
+          }
+        },
+        "required": ["ident", "address", "latitude", "longitude"],
+        "example": {
+          "ident": 1,
+          "address": "1 Highfield Road, Southampton, SO17 1BJ",
+          "latitude": 50.9356,
+          "longitude": -1.3963
+        }
+      },
+      "User": {
+        "type": "object",
+        "description": "A user record",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "User's name (used as unique identifier)"
+          },
+          "city": {
+            "type": "string",
+            "description": "User's city"
+          }
+        },
+        "required": ["name", "city"],
+        "example": {
+          "name": "Alice Johnson",
+          "city": "Southampton"
+        }
+      }
+    }
+  },
+  "paths": {
+    "/tree/add": {
+      "post": {
+        "tags": ["Trees"],
+        "summary": "Add a new tree",
+        "description": "Creates a new tree record in the database with location coordinates. Validates that coordinates are within valid geographic ranges and that the tree ID is unique.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/Tree" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Tree added successfully",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": { "result": true, "msg": "OK" }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request - invalid input JSON format or bad coordinates (latitude/longitude out of range)",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict - tree with this ID already exists in the database"
+          }
+        }
+      }
+    },
+    "/tree/search": {
+      "get": {
+        "tags": ["Trees"],
+        "summary": "Search trees by address filter",
+        "description": "Returns a list of trees whose address contains the filter string. Search is case-insensitive. Returns empty array if no matches found.",
+        "parameters": [
+          {
+            "name": "filter",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "string" },
+            "description": "Search term to find in tree addresses (case-insensitive)",
+            "example": "Highfield"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of trees matching the filter criteria",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/Tree" },
+                  "example": [
+                    {
+                      "ident": 1,
+                      "address": "1 Highfield Road, Southampton, SO17 1BJ",
+                      "latitude": 50.9356,
+                      "longitude": -1.3963
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request - missing or invalid filter parameter"
+          }
+        }
+      }
+    },
+    "/tree/delete/{id}": {
+      "delete": {
+        "tags": ["Trees"],
+        "summary": "Delete a tree",
+        "description": "Deletes a tree record from the database by ID. Returns 200 if tree was successfully deleted, 404 if tree does not exist.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" },
+            "description": "ID of the tree to delete",
+            "example": "1"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Tree deleted successfully",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": { "result": true, "msg": "Tree deleted" }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request - missing or empty name parameter"
+          },
+          "404": {
+            "description": "Not found - tree with the specified ID does not exist in the database",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": { "result": false, "msg": "Tree does not exist" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/user/add": {
+      "post": {
+        "tags": ["Users"],
+        "summary": "Add a new user",
+        "description": "Creates a new user record in the database. User name is used as the unique identifier. Returns 200 on successful creation.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/User" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "User created successfully",
+            "content": {
+              "application/json": {
+                "example": "User {'name': 'Alice Johnson', 'city': 'Southampton'} inserted"
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request - missing required fields (name, city) or invalid JSON format"
+          },
+          "409": {
+            "description": "Conflict - user with this name already exists in the database"
+          },
+          "500": {
+            "description": "Server error - unexpected failure during user insertion"
+          }
+        }
+      }
+    },
+    "/user/delete/{name}": {
+      "delete": {
+        "tags": ["Users"],
+        "summary": "Delete a user",
+        "description": "Deletes a user record from the database by name. Returns 200 if user was successfully deleted, 404 if user does not exist.",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" },
+            "description": "Name of the user to delete",
+            "example": "Alice Johnson"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "User deleted successfully",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": { "result": true, "msg": "User deleted" }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request - missing or empty name parameter"
+          },
+          "404": {
+            "description": "Not found - user with the specified name does not exist in the database",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": { "result": false, "msg": "User does not exist" }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
